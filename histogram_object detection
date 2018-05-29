@@ -1,0 +1,136 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+
+def Isolate_Objects(img):
+ 
+	# Converting it into grayscale
+	gray =  cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+	
+	#getGrayHisto(gray)
+
+	
+	#Slow way
+	'''
+	# goes through every pixel evaluates if it has  a grayscale level higher than 190, if it does it turns it black
+	for i in range(gray.shape[0]): # travels across the hight of the image
+		for j in range (gray.shape[1]): # travels across the width of the image
+			if (gray[i][j] > 190): # and gray[i][j] < 220):
+				gray[i][j] = 0
+	''' 
+	#https://docs.opencv.org/3.4.0/d7/d4d/tutorial_py_thresholding.html
+	# if pixel value is greater than a threshold value, it is assigned one value (may be white), else it is assigned another value (may be black)
+	
+	#Otsu thresholding
+	ret, gray = cv2.threshold(gray, 190 , 255, cv2.THRESH_BINARY_INV)
+	
+
+	showImage(gray)
+	
+	img_closed = Morphological_Close(gray)
+	showImage(img_closed)
+	
+	img_flooded = floodfill(img_closed)
+	showImage(img_flooded)
+	
+	#Count_Objcets = count(img_flooded)
+	#showImage(Count_Objcets)
+	
+	img_Mean_Shift = meanshift(gray)
+	showImage(img_Mean_Shift)
+	
+def Morphological_Close(gray):
+
+	kernel = np.ones((5,5),np.uint8)
+	bw_close = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel)
+	gray = bw_close
+	return (gray)
+	
+def floodfill(Imgflood):
+	# Mask used to flood filling.
+	# Notice the size needs to be 2 pixels than the image.
+	h, w = Imgflood.shape[:2]
+	filled_flood = Imgflood
+	mask = np.zeros((h + 2, w + 2), np.uint8)
+	
+	# Floodfill from point (0, 0)
+	cv2.floodFill(filled_flood, mask, (0, 0), 255);
+	
+	# Invert floodfilled image
+	FloodFill_Inverse = cv2.bitwise_not(filled_flood)
+	
+	flood = Imgflood | FloodFill_Inverse
+
+	
+	return(flood)
+	
+
+			
+
+def showImage(ima):
+	cv2.namedWindow('lego_cars_issolatated', cv2.WINDOW_KEEPRATIO)
+
+	# Command will show the image 
+	cv2.imshow('lego_cars_issolatated', ima)
+
+	# will wait to execute the rest of the script (close the image), till the user have pressed a key
+	cv2.waitKey()
+	cv2.destroyAllWindows()
+	
+	
+	## Finds the area where there is the highest concentration of white points.
+def meanshift(img):
+	
+
+	hist = cv2.calcHist ([img], [0], None, [256], [0,256]) 
+	# https://docs.opencv.org/2.4/modules/imgproc/doc/histograms.html?highlight=calcbackproject
+	mask = cv2.calcBackProject([img],[0],hist, [0,180], 1)
+	
+	ret, track_window = cv2.meanShift(mask, (100,100,100,100), (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 1))
+	
+	x,y,w,h = track_window
+	print (track_window)
+	cv2.rectangle(img, ( x,y), (x + w, y+h), (0, 255, 0), 2)
+	
+	cv2.imshow('rectangle', img)
+	cv2.imshow('mask', mask)
+	
+	cv2.waitKey()
+	
+	 
+	return (mask)
+	
+def getGrayHisto(gray):
+	
+# shows the histogram of the grayscale picture
+	hist = cv2.calcHist ([gray], [0], None, [256], [0,256])
+
+	plt.subplot(211)
+
+	plt.plot(hist)
+
+	plt.show()
+
+	# Image 1		
+img = cv2.imread('/Users/xr081/Desktop/Vision_exam/Vision_exam_(4).jpg')
+
+	# Image 2	
+	
+#img = cv2.imread('/Users/xr081/Desktop/Vision_exam/Vision_exam_(7).jpg')
+	
+	# Image 3	
+	
+#img = cv2.imread('/Users/xr081/Desktop/Vision_exam/Vision_exam_(11).jpg')
+
+	# Image 4	
+	
+#img = cv2.imread('/Users/xr081/Desktop/Vision_exam/Vision_exam_(15).jpg')
+
+	# Image 5	
+	
+#img = cv2.imread('/Users/xr081/Desktop/Vision_exam/Vision_exam_(17).jpg')
+
+#call function
+Isolate_Objects(img)
