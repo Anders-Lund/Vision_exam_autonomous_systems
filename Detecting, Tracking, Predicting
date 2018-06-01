@@ -1,0 +1,281 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+
+def Isolate_Objects(img):
+ 
+	# Converting it into grayscale
+	gray =  cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+	
+	getGrayHisto(gray)
+
+	
+	#Slow way
+	'''
+	# goes through every pixel evaluates if it has  a grayscale level higher than 190, if it does it turns it black
+	for i in range(gray.shape[0]): # travels across the hight of the image
+		for j in range (gray.shape[1]): # travels across the width of the image
+			if (gray[i][j] > 190): # and gray[i][j] < 220):
+				gray[i][j] = 0
+	'''
+	
+	
+	#https://docs.opencv.org/3.4.0/d7/d4d/tutorial_py_thresholding.html
+	# if pixel value is greater than a threshold value, it is assigned one value (may be white), else it is assigned another value (may be black)
+	
+	#Otsu thresholding
+	ret, gray = cv2.threshold(gray, 120 , 130, cv2.THRESH_BINARY_INV)
+	
+	#multi_colour
+	#ret, gray = cv2.threshold(gray, 200 , 255, cv2.THRESH_BINARY_INV)
+
+
+	showImage(gray)
+	
+	img_closed = Morphological_Close(gray)
+	showImage(img_closed)
+	
+	img_flooded = floodfill(img_closed)
+	showImage(img_flooded)
+	
+	#Count_Objcets = count(img_flooded)
+	#showImage(Count_Objcets)
+	
+ 
+def Morphological_Close(gray):
+
+	kernel = np.ones((5,5),np.uint8)
+	bw_close = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel)
+	gray = bw_close
+	return (gray)
+	
+def floodfill(Imgflood):
+	# Mask used to flood filling.
+	# Notice the size needs to be 2 pixels than the image.
+	h, w = Imgflood.shape[:2]
+	filled_flood = Imgflood
+	mask = np.zeros((h + 2, w + 2), np.uint8)
+	
+	# Floodfill from point (0, 0)
+	cv2.floodFill(filled_flood, mask, (0, 0), 255);
+	
+	# Invert floodfilled image
+	FloodFill_Inverse = cv2.bitwise_not(filled_flood)
+	
+	flood = Imgflood | FloodFill_Inverse
+
+	
+	return(flood)
+	
+def showImage(ima):
+	cv2.namedWindow('lego_cars_issolatated', cv2.WINDOW_KEEPRATIO)
+
+	# Command will show the image 
+	cv2.imshow('lego_cars_issolatated', ima)
+
+	# will wait to execute the rest of the script (close the image), till the user have pressed a key
+	cv2.waitKey()
+	cv2.destroyAllWindows()
+	
+	
+	## Finds the area where there is the highest concentration of white points.
+def meanshift(frame, mask, x, y, width, height, term_criteria, prior_state):
+		
+	ret, track_window = cv2.meanShift(mask, (x, y, width, height), term_criteria)
+	
+	x,y,w,h = track_window
+	cv2.rectangle(frame, (x,y), (x + w, y+h), (0, 255, 0), 2)
+	
+	cv2.imshow('mask', mask)
+	cv2.imshow('frame', frame)	
+	
+	return (x,y)
+	
+def camshift(frame, mask, x, y, width, height, term_criteria, prior_state, current_state, vector_arrow):
+	
+	prior_state = [x,y]
+	ret, track_window = cv2.CamShift(mask, (x, y, width, height), term_criteria)	
+		
+	if ret[0][0] != 0:
+	
+		x,y,w,h = track_window
+		frame = box_it(ret, frame)
+		vector_arrow = [x - prior_state[0], y - prior_state[1]]
+		
+		
+	else:
+
+		x += vector_arrow[0] 
+		y += vector_arrow[1]
+		
+		#x,y = prediction(prior_state, vector_arrow)
+		#print (x,y,width,height)
+		cv2.rectangle(frame, (x,y), (x + width, y +height ), (255, 0, 0), 2)
+		ret, track_window = cv2.CamShift(mask, (x, y, width, height), term_criteria)
+		#frame = box_it_red(ret, frame)
+		'''
+	print ('prior')
+	print(prior_state)
+	prior_state = [x,y]
+		'''	
+	
+	#current_state = [x,y]
+
+	
+	cv2.imshow('mask', mask)
+	cv2.imshow('frame', frame)
+	print(x,y)
+	
+	return (x,y, vector_arrow)
+	
+	
+def box_it(ret, frame):
+	# discontinued using the rectangle function, as but used polylines instead
+	points = cv2.boxPoints(ret)
+	points = np.int0(points)
+	cv2.polylines(frame, [points], True, (0, 255, 0), 2)
+
+	return (frame)
+	
+def box_it_red(ret, frame):
+	# discontinued using the rectangle function, as but used polylines instead
+	points = cv2.boxPoints(ret)
+	points = np.int0(points)
+	cv2.polylines(frame, [points], True, (0, 0, 255), 2)
+
+	return (frame)
+	
+def eclipse_it(ret, frame):
+	points = cv2.fitEllipse(ret)
+	cv2.ellipse(f,ellipse,(0,255,0),2)
+	cv2.polylines(frame, [points], True, (0, 255, 0), 2)
+	
+	return (frame)
+	
+def getGrayHisto(gray):
+	
+# shows the histogram of the grayscale picture
+	hist = cv2.calcHist ([gray], [0], None, [256], [0,256])
+
+	plt.subplot(211)
+
+	plt.plot(hist)
+
+	plt.show()
+
+
+def getROI(frame, x, y, width, height):
+
+
+
+		roi = frame[y: y+ height, x: x+ width]
+		return (roi)
+		
+def prediction(prior_state, vector_arrow):
+	
+	
+	x = 1
+	y = 1
+	#x = 580
+	#y = 285
+	#width = 300
+	#height = 200
+
+	print(current_state, prior_state)
+	
+	x += vector_arrow[0]
+	y += vector_arrow[1]
+	
+	
+	
+	#x = current_state[0]-prior_state[0] + current_state[0]
+	#y = current_state[1]-prior_state[1] + current_state[1]
+	#current_state = [x,y]
+
+	return(x, y)
+
+
+	
+
+	#video
+video = cv2.VideoCapture("/Users/xr081/Desktop/Vision_exam/Chosen_video.mp4")
+
+ret, frame = video.read()
+	
+x = 5
+y = 385 
+width = 50
+height = 55
+
+
+
+current_state = [x,y]
+prior_state = [0,0]
+vector_arrow = [0,0]
+
+'''
+#delete
+x = 580
+y = 285
+width = 300
+height = 200
+
+ROI = getROI(frame, x, y, width, height)
+
+cv2.imshow('test',ROI)
+cv2.waitKey()
+# to here
+'''
+
+
+ROI = getROI(frame, x, y, width, height)
+
+hsv_roi = cv2.cvtColor(ROI, cv2.COLOR_BGR2HSV)
+
+# cv2.calcHist(images, channels, mask, histSize, ranges[, hist[, accumulate]])
+roi_hist = cv2.calcHist([hsv_roi], [0], None, [180], [0,180])
+
+# as can be seen, we need to normalise the histogram, so the maximum becomes 255
+roi_hist = cv2.normalize(roi_hist, roi_hist, 0, 255, cv2.NORM_MINMAX)
+#print (roi_hist)
+
+term_criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 1)
+
+
+while True:
+	_, frame = video.read()
+
+	hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+	# we find the back projection : https://docs.opencv.org/3.3.1/dc/df6/tutorial_py_histogram_backprojection.html
+	# calcBackProject didn't perform as expected
+	#mask = cv2.calcBackProject([hsv], [0], roi_hist, [0,180], 1)
+
+	# define range of yellow color in HSV
+	lower_yellow = np.array([20, 100, 100])
+	upper_yellow = np.array([30, 255, 255])
+	
+	lower_yellow = np.array([20, 150, 150])
+	upper_yellow = np.array([30, 255, 255])
+	
+	# Threshold the HSV image to get only yellow colors
+	mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+	
+	mask = Morphological_Close(mask)
+	#getGrayHisto(mask)
+
+	#x,y = meanshift(frame, mask, x, y, width, height, term_criteria)
+	
+	# had to move away from meanShift as it lost the object
+	x, y, vector_arrow = camshift(frame, mask, x, y, width, height, term_criteria, prior_state, current_state, vector_arrow)
+	prior_state = [x,y]
+
+	cv2.waitKey()
+	
+	key = cv2.waitKey(32)
+	if key == 27:
+		break
+video.release()
+cv2.destroyAllWindows()
